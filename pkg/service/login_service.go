@@ -11,7 +11,7 @@ import (
 	"log"
 )
 
-var Get *LoginService
+var Instance *LoginService
 
 type LoginService struct {
 	rdb     *redis.Client
@@ -19,7 +19,7 @@ type LoginService struct {
 }
 
 func Start(rdb *redis.Client) {
-	Get = &LoginService{
+	Instance = &LoginService{
 		rdb: rdb,
 	}
 
@@ -28,7 +28,7 @@ func Start(rdb *redis.Client) {
 		panic(err)
 	}
 
-	Get.Bootstrap()
+	Instance.Bootstrap()
 }
 
 func (s *LoginService) Bootstrap() {
