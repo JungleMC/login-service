@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/JungleMC/login-service/internal/config"
 	"github.com/JungleMC/sdk/pkg/events"
 	"github.com/caarlos0/env"
@@ -18,14 +19,22 @@ type LoginService struct {
 	channel <-chan *redis.Message
 }
 
-func Start(rdb *redis.Client) {
-	Instance = &LoginService{
-		rdb: rdb,
+func Start() {
+	config.Get = &config.Config{}
+	err := env.Parse(config.Get)
+	if err != nil {
+		panic(err)
 	}
 
-	config.Get = &config.Config{}
-	if err := env.Parse(config.Get); err != nil {
-		panic(err)
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     fmt.Sprintf("%v:%v", config.Get.RedisHost, config.Get.RedisPort),
+		Password: config.Get.RedisPassword,
+		DB:       config.Get.RedisDatabase,
+	})
+	defer rdb.Close()
+
+	Instance = &LoginService{
+		rdb: rdb,
 	}
 
 	Instance.Bootstrap()
