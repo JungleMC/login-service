@@ -4,16 +4,17 @@ import (
 	"context"
 	"errors"
 	"github.com/JungleMC/login-service/internal/config"
-	"github.com/JungleMC/sdk/pkg/redis/messages"
+	"github.com/JungleMC/sdk/pkg/events"
 	"github.com/caarlos0/env"
 	"github.com/go-redis/redis/v8"
+	"google.golang.org/protobuf/proto"
 	"log"
 )
 
 var Get *LoginService
 
 type LoginService struct {
-	rdb  *redis.Client
+	rdb     *redis.Client
 	channel <-chan *redis.Message
 }
 
@@ -31,7 +32,7 @@ func Start(rdb *redis.Client) {
 }
 
 func (s *LoginService) Bootstrap() {
-	s.channel = s.rdb.PSubscribe(context.Background(), "login.*").Channel()
+	s.channel = s.rdb.PSubscribe(context.Background(), "event.*").Channel()
 	for msg := range s.channel {
 		err := s.onMessage(msg)
 		if err != nil {
@@ -43,18 +44,21 @@ func (s *LoginService) Bootstrap() {
 
 func (s *LoginService) onMessage(msg *redis.Message) error {
 	switch msg.Channel {
-	case "login.begin":
-		return s.onLoginBegin(msg)
+	case "event.login":
+		event := &events.PlayerLoginEvent{}
+		err := unmarshalMessage(msg, proto.Message(event))
+		if err != nil {
+			return err
+		}
+		return s.onPlayerLoginEvent(event)
 	}
 	return errors.New("not implemented: " + msg.Channel)
 }
 
-func (s *LoginService) onLoginBegin(m *redis.Message) error {
-	msg := &messages.LoginBegin{}
-	err := msg.UnmarshalBinary([]byte(m.Payload))
+func unmarshalMessage(in *redis.Message, out proto.Message) error {
+	err := proto.Unmarshal([]byte(in.Payload), out)
 	if err != nil {
 		return err
 	}
-	log.Println(msg.Username)
 	return nil
 }
