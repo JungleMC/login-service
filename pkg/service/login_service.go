@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/JungleMC/login-service/internal/config"
 	"github.com/JungleMC/sdk/pkg/events"
+	"github.com/JungleMC/sdk/pkg/messages"
 	"github.com/caarlos0/env"
 	"github.com/go-redis/redis/v8"
 	"google.golang.org/protobuf/proto"
@@ -55,19 +56,13 @@ func (s *LoginService) onMessage(msg *redis.Message) error {
 	switch msg.Channel {
 	case "event.login":
 		event := &events.PlayerLoginEvent{}
-		err := unmarshalMessage(msg, proto.Message(event))
+		err := messages.UnmarshalMessage(msg, proto.Message(event))
 		if err != nil {
 			return err
 		}
 		return s.onPlayerLoginEvent(event)
+	case "event.login.response":
+		return nil // don't care
 	}
 	return errors.New("not implemented: " + msg.Channel)
-}
-
-func unmarshalMessage(in *redis.Message, out proto.Message) error {
-	err := proto.Unmarshal([]byte(in.Payload), out)
-	if err != nil {
-		return err
-	}
-	return nil
 }
